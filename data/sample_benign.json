@@ -1,0 +1,62 @@
+[
+  {
+    "EventID": 1,
+    "UtcTime": "2026-11-09 07:00:01.112",
+    "ProcessGuid": "{b4c5d6e7-3001-6730-0010-000000001000}",
+    "ProcessId": 2040,
+    "Image": "C:\\Windows\\explorer.exe",
+    "CommandLine": "C:\\Windows\\explorer.exe",
+    "ParentProcessGuid": "{00000000-0000-0000-0000-000000000000}",
+    "ParentProcessId": 0,
+    "ParentImage": "-",
+    "User": "DESKTOP-ROG\\mhassan"
+  },
+  {
+    "EventID": 1,
+    "UtcTime": "2026-11-09 07:00:12.539",
+    "ProcessGuid": "{b4c5d6e7-3002-6730-0011-000000001100}",
+    "ProcessId": 6120,
+    "Image": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "CommandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --profile-directory=\"Default\"",
+    "ParentProcessGuid": "{b4c5d6e7-3001-6730-0010-000000001000}",
+    "ParentProcessId": 2040,
+    "ParentImage": "C:\\Windows\\explorer.exe",
+    "User": "DESKTOP-ROG\\mhassan"
+  },
+  {
+    "EventID": 1,
+    "UtcTime": "2026-11-09 07:00:13.004",
+    "ProcessGuid": "{b4c5d6e7-3003-6730-0012-000000001200}",
+    "ProcessId": 7440,
+    "Image": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "CommandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --type=utility --utility-sub-type=network.mojom.NetworkService",
+    "ParentProcessGuid": "{b4c5d6e7-3002-6730-0011-000000001100}",
+    "ParentProcessId": 6120,
+    "ParentImage": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "User": "DESKTOP-ROG\\mhassan"
+  },
+  {
+    "EventID": 1,
+    "UtcTime": "2026-11-09 07:01:45.880",
+    "ProcessGuid": "{b4c5d6e7-3004-6730-0013-000000001300}",
+    "ProcessId": 980,
+    "Image": "C:\\Windows\\System32\\svchost.exe",
+    "CommandLine": "C:\\Windows\\System32\\svchost.exe -k netsvcs -p -s Schedule",
+    "ParentProcessGuid": "{00000000-0000-0000-0000-000000000000}",
+    "ParentProcessId": 0,
+    "ParentImage": "-",
+    "User": "NT AUTHORITY\\SYSTEM"
+  },
+  {
+    "EventID": 1,
+    "UtcTime": "2026-11-09 07:01:46.210",
+    "ProcessGuid": "{b4c5d6e7-3005-6730-0014-000000001400}",
+    "ProcessId": 3310,
+    "Image": "C:\\Windows\\System32\\taskhostw.exe",
+    "CommandLine": "taskhostw.exe {2227A56E-85A3-49AE-948A-02D58F72DEAE}",
+    "ParentProcessGuid": "{b4c5d6e7-3004-6730-0013-000000001300}",
+    "ParentProcessId": 980,
+    "ParentImage": "C:\\Windows\\System32\\svchost.exe",
+    "User": "NT AUTHORITY\\SYSTEM"
+  }
+]

