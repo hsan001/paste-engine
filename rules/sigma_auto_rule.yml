@@ -3,7 +3,8 @@ id: b4349038-55b0-5b8e-94dd-e570cf3698b0
 status: experimental
 description: The Office application winword.exe spawned cmd.exe, which is a known Living-off-the-Land technique. The command
   line contains a Base64-encoded PowerShell payload that decodes to a network download cradle, strongly indicating malicious
-  macro execution.
+  macro execution. Correlated network egress detected to 198.51.100.42, update-telemetry-check.com indicating potential C2
+  communication.
 references:
 - https://attack.mitre.org/techniques/T1059/001
 author: Mohammad Hassan Jalal (PASTE Autonomous Engine)
@@ -11,6 +12,8 @@ date: '2026-11-09'
 tags:
 - attack.execution
 - attack.t1059.001
+- attack.command_and_control
+- attack.t1071.001
 logsource:
   category: process_creation
   product: windows

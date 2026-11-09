@@ -67,6 +67,10 @@ class AlertTriageReport(BaseModel):
         description="1–2 sentence explanation of why this parent-child "
         "relationship is anomalous."
     )
+    network_indicators: list[str] = Field(
+        default_factory=list,
+        description="Extracted network egress indicators (IP addresses, domains)."
+    )
     recommended_action: str = Field(
         description="Analyst-facing recommended response action."
     )
@@ -171,6 +175,18 @@ def triage_provenance_chain(subgraph_data: dict) -> AlertTriageReport:
         (parent_img, child_img), _DEFAULT_TECHNIQUE
     )
 
+    # Extract network indicators from chain nodes
+    network_indicators: list[str] = list(subgraph_data.get("network_indicators", []))
+    if not network_indicators:
+        for n in chain:
+            if n.get("node_type") == "NetworkSocket":
+                dest_ip = n.get("destination_ip")
+                hostname = n.get("hostname")
+                if dest_ip and dest_ip not in network_indicators:
+                    network_indicators.append(dest_ip)
+                if hostname and hostname not in network_indicators:
+                    network_indicators.append(hostname)
+
     verdict, confidence = _score_chain(chain, decoded)
 
     # ── Benign path ────────────────────────────────────────────────────
@@ -188,6 +204,7 @@ def triage_provenance_chain(subgraph_data: dict) -> AlertTriageReport:
                 "Legitimate operating system and browser process tree. "
                 "All parent-child relationships match known-good baselines."
             ),
+            network_indicators=[],
             recommended_action="No action required. Event suppressed.",
         )
 
@@ -208,6 +225,12 @@ def triage_provenance_chain(subgraph_data: dict) -> AlertTriageReport:
             f"the process chain depth ({len(chain)} hops) increases suspicion."
         )
 
+    if network_indicators:
+        explanation += (
+            f" Correlated network egress detected to "
+            f"{', '.join(network_indicators)} indicating potential C2 communication."
+        )
+
     recommended = (
         "Isolate host immediately, collect memory dump and Sysmon logs, "
         "revoke user session tokens, and escalate to Tier-2 SOC analyst."
@@ -225,6 +248,7 @@ def triage_provenance_chain(subgraph_data: dict) -> AlertTriageReport:
         mitre_technique_id=technique["mitre_technique_id"],
         technique_name=technique["technique_name"],
         explanation=explanation,
+        network_indicators=network_indicators,
         recommended_action=recommended,
     )
 

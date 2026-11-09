@@ -1,9 +1,9 @@
 # PASTE: Provenance-Augmented SOC Triage & Adaptive Detection Engine
 
+![CI](https://github.com/hsan001/paste-engine/actions/workflows/ci.yml/badge.svg)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Detection-as-Code](https://img.shields.io/badge/Detection--as--Code-Sigma%20v2-orange.svg)](https://github.com/SigmaHQ/sigma)
-[![CI Workflow](https://github.com/hsan001/paste-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/hsan001/paste-engine/actions/workflows/ci.yml)
 
 PASTE is an autonomous, causality-aware detection and alert triage engine designed to combat alert fatigue and detect evasive Living-off-the-Land (LotL) attacks through process provenance graph reconstruction, deterministic payload de-obfuscation, structured Pydantic triage validation, and automated Detection-as-Code (Sigma, Splunk SPL, Microsoft Sentinel KQL) synthesis.
 
@@ -23,46 +23,47 @@ Modern Security Operations Centers (SOCs) face critical operational bottlenecks:
 ## 2. Core Architecture
 
 ```
-                    +------------------------------------------+
-                    |  Windows Telemetry: Sysmon (Event ID 1)  |
-                    |    UtcTime, ProcessGuid, ParentGuid      |
-                    +--------------------+---------------------+
-                                         |
-                                         v
-                    +------------------------------------------+
-                    |        NetworkX Provenance DAG           |
-                    | ParentProcessGuid -> ProcessGuid graph   |
-                    +--------------------+---------------------+
-                                         |
-                                         v
-                    +------------------------------------------+
-                    |     UTF-16LE Base64 De-obfuscator        |
-                    |  Extracts -e / -enc / -encodedcommand    |
-                    +--------------------+---------------------+
-                                         |
-                                         v
-                    +------------------------------------------+
-                    |    Pydantic Causality-Aware Triage       |
-                    |   Schema: AlertTriageReport (Offline)    |
-                    +--------------------+---------------------+
-                                         |
-                         +---------------+---------------+
-                         |                               |
-                 Verdict: BENIGN                 Verdict: MALICIOUS
-                         |                               |
-                         v                               v
-             +-----------------------+       +-----------------------+
-             |   Event Suppressed    |       |  pySigma Transpiler   |
-             | Clean Exit (No Rules) |       |  Sigma v2 Rule Gen    |
-             +-----------------------+       +-----------+-----------+
-                                                         |
-                                        +----------------+----------------+
-                                        |                                 |
-                                        v                                 v
-                             +--------------------+             +--------------------+
-                             |     Splunk SPL     |             |  Sentinel / M365D  |
-                             |      Backend       |             |    Kusto (KQL)     |
-                             +--------------------+             +--------------------+
+         +-------------------------------------------------------+
+         |     Multi-Telemetry Ingestion (Microsoft Sysmon)       |
+         |  Event ID 1: Process Creation (Guid, ParentGuid, Cmd) |
+         |  Event ID 3: Network Connection (IP, Port, Hostname)  |
+         +---------------------------+---------------------------+
+                                     |
+                                     v
+         +-------------------------------------------------------+
+         |        NetworkX Multi-Telemetry Provenance DAG        |
+         |  ProcessGuid -> ChildGuid & ProcessGuid -> NetSocket  |
+         +---------------------------+---------------------------+
+                                     |
+                                     v
+         +-------------------------------------------------------+
+         |             UTF-16LE Base64 De-obfuscator             |
+         |         Extracts -e / -enc / -encodedcommand          |
+         +---------------------------+---------------------------+
+                                     |
+                                     v
+         +-------------------------------------------------------+
+         |         Pydantic Causality-Aware Triage Engine        |
+         |   Schema: AlertTriageReport (Offline Rule Engine)     |
+         +---------------------------+---------------------------+
+                                     |
+                     +---------------+---------------+
+                     |                               |
+             Verdict: BENIGN                 Verdict: MALICIOUS
+                     |                               |
+                     v                               v
+         +-----------------------+       +-----------------------+
+         |   Event Suppressed    |       |  pySigma Transpiler   |
+         | Clean Exit (No Rules) |       |  Sigma v2 Rule Gen    |
+         +-----------------------+       +-----------+-----------+
+                                                     |
+                                    +----------------+----------------+
+                                    |                                 |
+                                    v                                 v
+                         +--------------------+             +--------------------+
+                         |     Splunk SPL     |             |  Sentinel / M365D  |
+                         |      Backend       |             |    Kusto (KQL)     |
+                         +--------------------+             +--------------------+
 ```
 
 ### Pipeline Flow:
@@ -80,11 +81,13 @@ PASTE models and evaluates process creation telemetry across standard enterprise
 | Event Source | ID | Description | Primary Fields Inspected |
 |---|---|---|---|
 | **Microsoft Sysmon** | Event ID 1 | Process Creation | `ProcessGuid`, `ParentProcessGuid`, `Image`, `ParentImage`, `CommandLine`, `User` |
+| **Microsoft Sysmon** | Event ID 3 | Network Connection | `ProcessGuid`, `Initiated`, `SourceIp`, `DestinationIp`, `DestinationPort`, `DestinationHostname` |
 | **Windows Security** | Event ID 4688 | New Process Created | `NewProcessId`, `ProcessCommandLine`, `ParentProcessName` |
 
 ### MITRE ATT&CK Alignments:
 - **T1059.001 - Command and Scripting Interpreter: PowerShell:** Detected via Office processes spawning script interpreters with encoded execution flags (`-ep bypass -e ...`).
 - **T1059.003 - Command and Scripting Interpreter: Windows Command Shell:** Detected via macro execution spawning intermediate cmd proxies (`winword.exe -> cmd.exe`).
+- **T1071.001 - Application Layer Protocol: Web Protocols:** Correlated egress communication to remote C2 infrastructure (`update-telemetry-check.com:443`).
 - **T1033 - System Owner/User Discovery:** Identified in downstream reconnaissance activity within the causal execution chain (`whoami.exe /all`).
 - **T1105 - Ingress Tool Transfer:** De-obfuscated network cradle discovery (`Invoke-WebRequest -Uri http://.../payload.exe`).
 

@@ -105,18 +105,32 @@ def generate_sigma_rule(triage_report: AlertTriageReport) -> str:
     technique_label = triage_report.technique_name or "Living-off-the-Land Execution"
     title = f"Suspicious {child_filename} Spawned by {parent_filename} ({technique_label})"
 
+    tags = [
+        "attack.execution",
+        f"attack.{technique_id.lower()}",
+    ]
+    if triage_report.network_indicators:
+        tags.extend([
+            "attack.command_and_control",
+            "attack.t1071.001",
+        ])
+
+    description = triage_report.explanation
+    if triage_report.network_indicators and "network egress" not in description.lower():
+        description += (
+            f" Correlated network egress detected to "
+            f"{', '.join(triage_report.network_indicators)}."
+        )
+
     rule = {
         "title": title,
         "id": rule_uuid,
         "status": "experimental",
-        "description": triage_report.explanation,
+        "description": description,
         "references": [mitre_url],
         "author": "Mohammad Hassan Jalal (PASTE Autonomous Engine)",
         "date": date.today().strftime("%Y-%m-%d"),
-        "tags": [
-            "attack.execution",
-            f"attack.{technique_id.lower()}",
-        ],
+        "tags": tags,
         "logsource": {
             "category": "process_creation",
             "product": "windows",

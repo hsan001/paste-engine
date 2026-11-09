@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-paste_engine – Process Provenance Analyser
-==========================================
-Reads Sysmon Event ID 1 logs, builds a directed process-creation graph
-with NetworkX, detects suspicious Living-off-the-Land (LotL) parent→child
-relationships, and prints the full causal chain as an ASCII tree.
+paste_engine – Process & Network Provenance Analyser
+====================================================
+Reads Sysmon Event ID 1 (Process Creation) and Event ID 3 (Network Connection)
+logs, builds a multi-telemetry directed graph with NetworkX, detects suspicious
+Living-off-the-Land (LotL) parent→child relationships, and prints the full
+causal chain (process lineage + correlated network egress) as an ASCII tree.
 """
 
 import base64
@@ -71,18 +72,60 @@ def load_events(path: str) -> list[dict]:
 
 def build_graph(events: list[dict]) -> nx.DiGraph:
     """
-    Build a directed graph where each node is a ProcessGuid and edges
-    represent parent→child process creation.
+    Build a multi-telemetry directed graph:
+      - Process nodes (Event ID 1): ProcessGuid -> ProcessGuid
+      - NetworkSocket nodes (Event ID 3): ProcessGuid -> NetworkSocket
     """
     G = nx.DiGraph()
+
+    # Pass 1: Add nodes
     for ev in events:
-        guid = ev["ProcessGuid"]
-        # Attempt to decode any PowerShell encoded payload
-        decoded = decode_powershell_payload(ev.get("CommandLine", ""))
-        G.add_node(guid, DecodedPayload=decoded, **ev)
-        parent_guid = ev["ParentProcessGuid"]
-        if parent_guid in G:
-            G.add_edge(parent_guid, guid)    # parent → child
+        event_id = ev.get("EventID") or ev.get("EventId") or ev.get("event_id")
+
+        if event_id == 1:
+            guid = ev["ProcessGuid"]
+            decoded = decode_powershell_payload(ev.get("CommandLine", ""))
+            G.add_node(
+                guid,
+                node_type="Process",
+                DecodedPayload=decoded,
+                **ev
+            )
+        elif event_id == 3:
+            proc_guid = ev.get("ProcessGuid", "")
+            dest_ip = ev.get("DestinationIp", "")
+            dest_port = str(ev.get("DestinationPort", ""))
+            protocol = str(ev.get("Protocol", "TCP")).upper()
+            hostname = ev.get("DestinationHostname", "")
+            socket_id = f"socket_{proc_guid}_{dest_ip}_{dest_port}"
+
+            G.add_node(
+                socket_id,
+                node_type="NetworkSocket",
+                destination_ip=dest_ip,
+                destination_port=dest_port,
+                protocol=protocol,
+                hostname=hostname,
+                **ev
+            )
+
+    # Pass 2: Add directed edges
+    for ev in events:
+        event_id = ev.get("EventID") or ev.get("EventId") or ev.get("event_id")
+
+        if event_id == 1:
+            guid = ev["ProcessGuid"]
+            parent_guid = ev.get("ParentProcessGuid")
+            if parent_guid and parent_guid in G:
+                G.add_edge(parent_guid, guid)
+        elif event_id == 3:
+            proc_guid = ev.get("ProcessGuid", "")
+            dest_ip = ev.get("DestinationIp", "")
+            dest_port = str(ev.get("DestinationPort", ""))
+            socket_id = f"socket_{proc_guid}_{dest_ip}_{dest_port}"
+            if proc_guid in G and socket_id in G:
+                G.add_edge(proc_guid, socket_id)
+
     return G
 
 
@@ -93,6 +136,8 @@ def detect_suspicious_edges(G: nx.DiGraph) -> list[tuple[str, str]]:
     """
     hits: list[tuple[str, str]] = []
     for parent, child in G.edges():
+        if G.nodes[child].get("node_type") == "NetworkSocket":
+            continue
         parent_img = _basename(G.nodes[parent].get("Image", ""))
         child_img  = _basename(G.nodes[child].get("Image", ""))
         if parent_img in OFFICE_IMAGES and child_img in SUSPICIOUS_CHILDREN:
@@ -103,7 +148,8 @@ def detect_suspicious_edges(G: nx.DiGraph) -> list[tuple[str, str]]:
 def trace_chain(G: nx.DiGraph, start_guid: str) -> list[str]:
     """
     Walk from *start_guid* up to the root ancestor, then return the
-    full path root → … → leaf for every descendant subtree.
+    full path root → … → leaf for every descendant subtree, including
+    child processes and correlated network sockets.
     """
     # Walk UP to root
     root = start_guid
@@ -113,12 +159,15 @@ def trace_chain(G: nx.DiGraph, start_guid: str) -> list[str]:
             break
         root = parents[0]
 
-    # BFS / DFS down from root – collect ordered chain
+    # Collect ordered chain
     chain: list[str] = []
 
     def _dfs(node: str) -> None:
         chain.append(node)
-        for child in G.successors(node):
+        # Visit NetworkSockets first, then child processes
+        children = list(G.successors(node))
+        children.sort(key=lambda c: 0 if G.nodes[c].get("node_type") == "NetworkSocket" else 1)
+        for child in children:
             _dfs(child)
 
     _dfs(root)
@@ -129,11 +178,8 @@ def trace_chain(G: nx.DiGraph, start_guid: str) -> list[str]:
 
 def print_ascii_tree(G: nx.DiGraph, root: str, prefix: str = "",
                      is_last: bool = True, is_root: bool = True) -> None:
-    """Recursively print the process tree from *root* downward."""
+    """Recursively print the multi-telemetry process & network tree from *root* downward."""
     node = G.nodes[root]
-    img_name = _basename(node["Image"])
-    pid      = node["ProcessId"]
-    cmdline  = node["CommandLine"]
 
     if is_root:
         connector = ""
@@ -141,6 +187,21 @@ def print_ascii_tree(G: nx.DiGraph, root: str, prefix: str = "",
     else:
         connector  = "└── " if is_last else "├── "
         new_prefix = prefix + ("    " if is_last else "│   ")
+
+    # Render NetworkSocket nodes
+    if node.get("node_type") == "NetworkSocket":
+        dest_ip = node.get("destination_ip", "")
+        dest_port = node.get("destination_port", "")
+        proto = node.get("protocol", "TCP").upper()
+        hostname = node.get("hostname", "")
+        host_str = f" ({hostname})" if hostname else ""
+        print(f"{prefix}{connector}[NETWORK EGRESS] {dest_ip}:{dest_port}{host_str} [{proto}]")
+        return
+
+    # Render Process nodes
+    img_name = _basename(node.get("Image", ""))
+    pid      = node.get("ProcessId", 0)
+    cmdline  = node.get("CommandLine", "")
 
     print(f"{prefix}{connector}[{img_name}]  PID: {pid}")
     print(f"{prefix}{'    ' if is_root else new_prefix}  ↳ {cmdline}")
@@ -152,6 +213,9 @@ def print_ascii_tree(G: nx.DiGraph, root: str, prefix: str = "",
         print(f"{tag_prefix}  [DECODED PAYLOAD]: {decoded}")
 
     children = list(G.successors(root))
+    # Order: NetworkSockets first, then child processes
+    children.sort(key=lambda c: 0 if G.nodes[c].get("node_type") == "NetworkSocket" else 1)
+
     for i, child in enumerate(children):
         last = (i == len(children) - 1)
         print_ascii_tree(G, child, prefix=new_prefix if not is_root else prefix,
@@ -166,7 +230,7 @@ def main() -> None:
     print("=" * 72)
 
     events = load_events(DATA_PATH)
-    print(f"\n[*] Loaded {len(events)} Sysmon Event-ID-1 records.\n")
+    print(f"\n[*] Loaded {len(events)} Sysmon telemetry records.\n")
 
     G = build_graph(events)
     print(f"[*] Process graph: {G.number_of_nodes()} nodes, "

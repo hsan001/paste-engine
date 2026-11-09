@@ -72,6 +72,22 @@
     "User": "DESKTOP-ROG\\mhassan"
   },
   {
+    "EventID": 3,
+    "EventId": 3,
+    "UtcTime": "2026-11-09 09:15:36.201",
+    "ProcessGuid": "{a1b2c3d4-2003-6730-0006-000000000600}",
+    "ProcessId": 9916,
+    "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "User": "DESKTOP-ROG\\mhassan",
+    "Protocol": "tcp",
+    "Initiated": "true",
+    "SourceIp": "192.168.1.105",
+    "SourcePort": "49822",
+    "DestinationIp": "198.51.100.42",
+    "DestinationPort": "443",
+    "DestinationHostname": "update-telemetry-check.com"
+  },
+  {
     "EventID": 1,
     "UtcTime": "2026-11-09 09:15:35.670",
     "ProcessGuid": "{a1b2c3d4-2004-6730-0007-000000000700}",

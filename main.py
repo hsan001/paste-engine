@@ -144,6 +144,8 @@ def phase2_triage(G, suspicious: list) -> list[AlertTriageReport]:
               f"{report.technique_name}")
         print(f"  Explanation      : {report.explanation}")
         print(f"  Decoded Payload  : {report.decoded_command or '(none)'}")
+        if report.network_indicators:
+            print(f"  Network Egress   : {', '.join(report.network_indicators)}")
         print(f"  Recommendation   : {report.recommended_action}\n")
 
     return reports
@@ -191,6 +193,8 @@ def final_summary(
     print(f"  Confidence       : {report.confidence_score:.0%}")
     print(f"  MITRE ATT&CK     : {report.mitre_technique_id} — "
           f"{report.technique_name}")
+    if report.network_indicators:
+        print(f"  Network Egress   : {', '.join(report.network_indicators)}")
     print(f"  Rule Path        : {RULE_PATH}")
     print(f"  SIEM Outputs     : Splunk SPL ({len(splunk_queries)} query) | "
           f"Sentinel KQL ({len(kql_queries)} query)")
