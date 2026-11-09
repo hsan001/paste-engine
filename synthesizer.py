@@ -90,8 +90,8 @@ def generate_sigma_rule(triage_report: AlertTriageReport) -> str:
         + technique_id.replace(".", "/")
     )
 
-    parent_filename = os.path.basename(triage_report.root_cause_process)
-    child_filename = os.path.basename(triage_report.malicious_child_process)
+    parent_filename = _basename(triage_report.root_cause_process)
+    child_filename = _basename(triage_report.malicious_child_process)
 
     # Extract non-empty tokens and flags from decoded_command
     tokens = extract_command_tokens(triage_report.decoded_command)

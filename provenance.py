@@ -33,8 +33,11 @@ SUSPICIOUS_CHILDREN = {
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 def _basename(path: str) -> str:
-    """Return the lower-cased filename from a full image path."""
-    return os.path.basename(path).lower()
+    """Return the lower-cased filename from a full Windows or POSIX image path."""
+    if not path:
+        return ""
+    clean = path.replace("\\", "/").rstrip("/")
+    return clean.split("/")[-1].lower()
 
 
 # Regex: match -e / -enc / -encodedcommand (case-insensitive) followed by

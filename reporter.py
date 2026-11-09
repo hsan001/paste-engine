@@ -18,8 +18,11 @@ from triage import AlertTriageReport
 
 
 def _basename(path: str) -> str:
-    """Return lower-cased filename from path."""
-    return os.path.basename(path).lower() if path else ""
+    """Return lower-cased filename from Windows or POSIX path."""
+    if not path:
+        return ""
+    clean = path.replace("\\", "/").rstrip("/")
+    return clean.split("/")[-1].lower()
 
 
 def generate_incident_brief(
