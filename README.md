@@ -167,9 +167,23 @@ Execute the driver against the Living-off-the-Land attack chain (`winword.exe ->
 python paste_engine/main.py
 ```
 **Expected Outcome:**
-- Phase 1 extracts and renders the full malicious lineage DAG and decodes the obfuscated PowerShell download cradle payload.
-- Phase 2 evaluates the chain with Pydantic, rendering a `MALICIOUS` verdict (95% confidence) mapped to `T1059.001`.
+- Phase 1 extracts and renders the full malicious lineage DAG, decodes the obfuscated PowerShell download cradle payload, and correlates Event ID 3 network egress.
+- Phase 2 evaluates the chain with Pydantic, rendering a `MALICIOUS` verdict (95% confidence) mapped to `T1059.001` and `T1071.001`.
 - Phase 3 generates the standardized Sigma rule and compiles live Splunk SPL and Microsoft Sentinel KQL queries in under 10 milliseconds.
+
+### 3. Pluggable Dual-Mode LLM Triage (Optional)
+By default, PASTE executes in **Deterministic Heuristic Fallback** mode with zero external dependencies. To enable **LLM-Augmented Triage** via OpenAI-compatible endpoints:
+```bash
+# OpenAI
+export OPENAI_API_KEY="sk-..."
+
+# Google Gemini (OpenAI compatibility)
+export GEMINI_API_KEY="AIza..."
+
+# Local Models (Ollama, vLLM, LMStudio)
+export PASTE_LLM_BASE_URL="http://localhost:11434/v1"
+```
+If an endpoint is offline or credentials are missing, PASTE seamlessly falls back to the deterministic heuristic engine without breaking detection workflows.
 
 ---
 

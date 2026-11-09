@@ -42,6 +42,7 @@ from provenance import (
 )
 from triage import (
     AlertTriageReport,
+    get_triage_mode,
     triage_provenance_chain,
 )
 from synthesizer import (
@@ -238,7 +239,8 @@ def main() -> None:
 
     _banner("PASTE ENGINE  ·  Automated End-to-End Detection Pipeline")
     print(f"\n  Started : {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
-    print(f"  Input   : {args.input}\n")
+    print(f"  Input   : {args.input}")
+    print(f"  [PASTE Core] Engine Mode: {get_triage_mode()}\n")
 
     # ── Phase 1: Provenance ───────────────────────────────────────────
     G, suspicious = phase1_provenance(args.input)
