@@ -2,13 +2,15 @@
 """
 paste_engine – Detection-as-Code Synthesizer (Phase 3)
 ======================================================
-Consumes an ``AlertTriageReport`` from the triage module and generates a
-production-grade Sigma v2 YAML rule, then writes it to disk.
+Consumes an ``AlertTriageReport`` from the triage module and dynamically
+generates a production-grade Sigma v2 YAML rule based on the triage output,
+then writes it to disk.
 """
 
 from __future__ import annotations
 
 import os
+import re
 import sys
 import uuid
 from datetime import date, timezone
@@ -34,13 +36,53 @@ RULES_DIR = os.path.join(os.path.dirname(__file__), "rules")
 RULE_PATH = os.path.join(RULES_DIR, "sigma_auto_rule.yml")
 
 
+# ── Token & Flag Extraction ───────────────────────────────────────────────
+
+def extract_command_tokens(decoded_command: str) -> list[str]:
+    """
+    Dynamically extract non-empty tokens, flags, and suspicious keywords
+    from a decoded command string for use in CommandLine|contains.
+    """
+    tokens: list[str] = []
+
+    # Check for presence of common suspicious keywords / LOLBIN flags
+    known_suspicious = [
+        "-enc", "-encodedcommand", "whoami", "powershell", "pwsh",
+        "bypass", "hidden", "invoke-webrequest", "downloadstring", "downloadfile"
+    ]
+    lower_cmd = decoded_command.lower() if decoded_command else ""
+    for kw in known_suspicious:
+        if kw in lower_cmd and kw not in tokens:
+            tokens.append(kw)
+
+    # Extract flags and command/cmdlet tokens directly from the payload
+    if decoded_command:
+        # Split on whitespace, quotes, and pipes
+        raw_words = re.split(r'[\s"\'|]+', decoded_command)
+        for word in raw_words:
+            w = word.strip()
+            if not w or len(w) < 2:
+                continue
+            # Pick up flags (-Uri, -ep), cmdlets with hyphens, or target binaries (.exe)
+            if w.startswith("-") or w.lower().endswith(".exe") or "-" in w:
+                if w not in tokens:
+                    tokens.append(w)
+
+    # Fallback to general suspicious command indicators if none extracted
+    if not tokens:
+        tokens = ["-enc", "-encodedcommand", "whoami"]
+
+    return tokens
+
+
 # ── Sigma Rule Generator ─────────────────────────────────────────────────
 
 def generate_sigma_rule(triage_report: AlertTriageReport) -> str:
     """
-    Build a valid Sigma v2 YAML document from a triage report.
+    Build a valid Sigma v2 YAML document dynamically synthesized from a triage report.
 
-    Returns the rendered YAML string.
+    Extracts parent, child, and command line tokens directly from the alert triage
+    report rather than relying on hardcoded process templates.
     """
     technique_id = triage_report.mitre_technique_id
     mitre_url = (
@@ -48,17 +90,23 @@ def generate_sigma_rule(triage_report: AlertTriageReport) -> str:
         + technique_id.replace(".", "/")
     )
 
-    # Deterministic UUID seeded from the technique + root process
+    parent_filename = os.path.basename(triage_report.root_cause_process)
+    child_filename = os.path.basename(triage_report.malicious_child_process)
+
+    # Extract non-empty tokens and flags from decoded_command
+    tokens = extract_command_tokens(triage_report.decoded_command)
+
+    # Deterministic UUID seeded from technique + root process + child process
     rule_uuid = str(uuid.uuid5(
         uuid.NAMESPACE_DNS,
-        f"paste_engine.{technique_id}.{triage_report.root_cause_process}",
+        f"paste_engine.{technique_id}.{parent_filename}.{child_filename}",
     ))
 
+    technique_label = triage_report.technique_name or "Living-off-the-Land Execution"
+    title = f"Suspicious {child_filename} Spawned by {parent_filename} ({technique_label})"
+
     rule = {
-        "title": (
-            "Suspicious Living-off-the-Land Process Spawned by "
-            "Office Application"
-        ),
+        "title": title,
         "id": rule_uuid,
         "status": "experimental",
         "description": triage_report.explanation,
@@ -75,25 +123,13 @@ def generate_sigma_rule(triage_report: AlertTriageReport) -> str:
         },
         "detection": {
             "selection_parent": {
-                "ParentImage|endswith": [
-                    "\\WINWORD.EXE",
-                    "\\EXCEL.EXE",
-                    "\\OUTLOOK.EXE",
-                ],
+                "ParentImage|endswith": [f"\\{parent_filename}"],
             },
             "selection_child": {
-                "Image|endswith": [
-                    "\\cmd.exe",
-                    "\\powershell.exe",
-                    "\\pwsh.exe",
-                ],
+                "Image|endswith": [f"\\{child_filename}"],
             },
             "selection_flags": {
-                "CommandLine|contains": [
-                    "-enc",
-                    "-encodedcommand",
-                    "whoami",
-                ],
+                "CommandLine|contains": tokens,
             },
             "condition": (
                 "selection_parent and selection_child and selection_flags"

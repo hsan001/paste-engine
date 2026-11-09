@@ -1,5 +1,5 @@
-title: Suspicious Living-off-the-Land Process Spawned by Office Application
-id: 57dc3ad5-397f-59ac-8eda-03cec83d1b57
+title: 'Suspicious cmd.exe Spawned by winword.exe (Command and Scripting Interpreter: PowerShell)'
+id: b4349038-55b0-5b8e-94dd-e570cf3698b0
 status: experimental
 description: The Office application winword.exe spawned cmd.exe, which is a known Living-off-the-Land technique. The command
   line contains a Base64-encoded PowerShell payload that decodes to a network download cradle, strongly indicating malicious
@@ -17,19 +17,16 @@ logsource:
 detection:
   selection_parent:
     ParentImage|endswith:
-    - \WINWORD.EXE
-    - \EXCEL.EXE
-    - \OUTLOOK.EXE
+    - \winword.exe
   selection_child:
     Image|endswith:
     - \cmd.exe
-    - \powershell.exe
-    - \pwsh.exe
   selection_flags:
     CommandLine|contains:
-    - -enc
-    - -encodedcommand
-    - whoami
+    - invoke-webrequest
+    - Invoke-WebRequest
+    - -Uri
+    - http://192.168.1.50/payload.exe
   condition: selection_parent and selection_child and selection_flags
 falsepositives:
 - Administrative macros or third-party add-ins (rare)

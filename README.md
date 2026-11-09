@@ -3,6 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Detection-as-Code](https://img.shields.io/badge/Detection--as--Code-Sigma%20v2-orange.svg)](https://github.com/SigmaHQ/sigma)
+[![CI Workflow](https://github.com/hsan001/paste-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/hsan001/paste-engine/actions/workflows/ci.yml)
 
 PASTE is an autonomous, causality-aware detection and alert triage engine designed to combat alert fatigue and detect evasive Living-off-the-Land (LotL) attacks through process provenance graph reconstruction, deterministic payload de-obfuscation, structured Pydantic triage validation, and automated Detection-as-Code (Sigma, Splunk SPL, Microsoft Sentinel KQL) synthesis.
 
@@ -114,19 +115,16 @@ logsource:
 detection:
   selection_parent:
     ParentImage|endswith:
-    - \WINWORD.EXE
-    - \EXCEL.EXE
-    - \OUTLOOK.EXE
+    - \winword.exe
   selection_child:
     Image|endswith:
     - \cmd.exe
-    - \powershell.exe
-    - \pwsh.exe
   selection_flags:
     CommandLine|contains:
-    - -enc
-    - -encodedcommand
-    - whoami
+    - invoke-webrequest
+    - Invoke-WebRequest
+    - -Uri
+    - http://192.168.1.50/payload.exe
   condition: selection_parent and selection_child and selection_flags
 falsepositives:
 - Administrative macros or third-party add-ins (rare)
@@ -135,12 +133,12 @@ level: high
 
 ### Compiled Splunk SPL Query:
 ```spl
-ParentImage IN ("*\\WINWORD.EXE", "*\\EXCEL.EXE", "*\\OUTLOOK.EXE") Image IN ("*\\cmd.exe", "*\\powershell.exe", "*\\pwsh.exe") CommandLine IN ("*-enc*", "*-encodedcommand*", "*whoami*")
+ParentImage="*\\winword.exe" Image="*\\cmd.exe" CommandLine IN ("*invoke-webrequest*", "*Invoke-WebRequest*", "*-Uri*", "*http://192.168.1.50/payload.exe*")
 ```
 
 ### Compiled Microsoft Sentinel / M365 Defender (KQL) Query:
 ```kql
-(ParentImage endswith "\\WINWORD.EXE" or ParentImage endswith "\\EXCEL.EXE" or ParentImage endswith "\\OUTLOOK.EXE") and (Image endswith "\\cmd.exe" or Image endswith "\\powershell.exe" or Image endswith "\\pwsh.exe") and (CommandLine contains "-enc" or CommandLine contains "-encodedcommand" or CommandLine contains "whoami")
+ParentImage endswith "\\winword.exe" and Image endswith "\\cmd.exe" and (CommandLine contains "invoke-webrequest" or CommandLine contains "Invoke-WebRequest" or CommandLine contains "-Uri" or CommandLine contains "http://192.168.1.50/payload.exe")
 ```
 
 ---
@@ -150,7 +148,7 @@ ParentImage IN ("*\\WINWORD.EXE", "*\\EXCEL.EXE", "*\\OUTLOOK.EXE") Image IN ("*
 ### Prerequisites
 Install the required Python dependencies:
 ```bash
-pip install networkx pydantic pySigma pySigma-backend-splunk pySigma-backend-microsoft365defender pyyaml
+pip install -r requirements.txt
 ```
 
 ### 1. Benign Baseline Suppression Evaluation

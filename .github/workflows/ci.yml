@@ -1,0 +1,34 @@
+name: PASTE CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Prepare directory alias
+        run: ln -s . paste_engine
+
+      - name: Run regression check on benign logs
+        run: python paste_engine/main.py paste_engine/data/sample_benign.json
+
+      - name: Run attack detection & rule synthesis check
+        run: python paste_engine/main.py
