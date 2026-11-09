@@ -1,10 +1,11 @@
 title: 'Suspicious cmd.exe Spawned by winword.exe (Command and Scripting Interpreter: PowerShell)'
 id: b4349038-55b0-5b8e-94dd-e570cf3698b0
 status: experimental
-description: The Office application winword.exe spawned cmd.exe, which is a known Living-off-the-Land technique. The command
+description: 'The Office application winword.exe spawned cmd.exe, which is a known Living-off-the-Land technique. The command
   line contains a Base64-encoded PowerShell payload that decodes to a network download cradle, strongly indicating malicious
   macro execution. Correlated network egress detected to 198.51.100.42, update-telemetry-check.com indicating potential C2
-  communication.
+  communication. OSINT threat intelligence confirms 198.51.100.42 is classified as ''Known Cobalt Strike C2 / Bulletproof
+  Hosting'' (Abuse: 100%, Netherlands (NL)).'
 references:
 - https://attack.mitre.org/techniques/T1059/001
 author: Mohammad Hassan Jalal (PASTE Autonomous Engine)

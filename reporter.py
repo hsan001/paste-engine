@@ -132,6 +132,23 @@ def generate_incident_brief(
 
     ioc_table = "\n".join(ioc_rows) if ioc_rows else "| Telemetry | None | No external IOCs detected | Low |"
 
+    # Build Threat Intelligence Table
+    intel_dict = triage_report.threat_intel or graph_data.get("threat_intel", {})
+    intel_rows = []
+    if intel_dict:
+        for ip, intel in intel_dict.items():
+            isp = intel.get("isp", "Unknown")
+            country = intel.get("country", "Unknown")
+            classification = intel.get("threat_classification", "Unclassified")
+            abuse = intel.get("abuse_confidence_score", 0)
+            score_disp = f"**{abuse}%**" if abuse >= 75 else f"{abuse}%"
+            intel_rows.append(f"| `{ip}` | {isp} | {country} | {classification} | {score_disp} |")
+    elif c2_ips:
+        for ip in c2_ips:
+            intel_rows.append(f"| `{ip}` | Unenriched External Host | Unknown | Potential Command & Control | Low |")
+
+    intel_table = "\n".join(intel_rows) if intel_rows else "| None | No external indicators observed | — | — | — |"
+
     # Build Containment Scripts
     pid_terminations = "\n".join([f"Stop-Process -Id {p} -Force   # Terminate PID {p}" for p in suspicious_pids])
     firewall_blocks = "\n".join([
@@ -188,7 +205,15 @@ Chronological reconstruction derived from multi-telemetry provenance DAG:
 
 ---
 
-## 4. Automated Containment Runbook
+## 4. OSINT Threat Intelligence Enrichment
+
+| Indicator (IP) | Autonomous System / ISP | Geolocation Country | Threat Classification | Abuse Confidence |
+|---|---|---|---|---|
+{intel_table}
+
+---
+
+## 5. Automated Containment Runbook
 
 The following PowerShell commands should be executed immediately by Incident Responders:
 
@@ -212,7 +237,7 @@ Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
 
 ---
 
-## 5. Detection-as-Code Artifacts
+## 6. Detection-as-Code Artifacts
 
 ### A. Synthesized Sigma Rule
 **Rule File:** `{sigma_rule_path}`
@@ -253,6 +278,14 @@ if __name__ == "__main__":
         technique_name="Command and Scripting Interpreter: PowerShell",
         explanation="Word spawned cmd which executed an encoded payload.",
         network_indicators=["198.51.100.42", "update-telemetry-check.com"],
+        threat_intel={
+            "198.51.100.42": {
+                "isp": "FlyServers S.A. / Bulletproof VPS Hosting",
+                "country": "Netherlands (NL)",
+                "threat_classification": "Known Cobalt Strike C2 / Bulletproof Hosting",
+                "abuse_confidence_score": 100,
+            }
+        },
         recommended_action="Isolate host immediately.",
     )
     dummy_data = {

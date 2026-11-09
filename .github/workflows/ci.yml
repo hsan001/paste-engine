@@ -32,3 +32,6 @@ jobs:
 
       - name: Run attack detection & rule synthesis check
         run: python paste_engine/main.py
+
+      - name: Run noisy enterprise log pruning & enrichment check
+        run: python paste_engine/main.py paste_engine/data/sample_enterprise_noisy.json

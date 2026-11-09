@@ -4,9 +4,11 @@ paste_engine – Automated End-to-End Detection Pipeline Driver
 =============================================================
 Ties together every PASTE phase in a single CLI entrypoint:
 
-  Phase 1 – Provenance graph reconstruction + PowerShell de-obfuscation
-  Phase 2 – Structured Pydantic triage (AlertTriageReport)
-  Phase 3 – Sigma rule synthesis + SIEM query compilation (if MALICIOUS)
+  Phase 1 – Multi-telemetry provenance graph reconstruction + PowerShell de-obfuscation
+  Phase 2 – Bidirectional causal subgraph pruning + OSINT threat intelligence enrichment
+  Phase 3 – Structured Pydantic dual-mode triage (AlertTriageReport)
+  Phase 4 – Detection-as-Code synthesis + SIEM compilation (Splunk SPL & Sentinel KQL)
+  Phase 5 – Interactive provenance visualization + automated IR incident reporting
 
 Usage:
     python paste_engine/main.py [--input <path/to/sysmon.json>]
@@ -16,9 +18,11 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 import time
 from datetime import datetime, timezone
+from typing import Any
 
 # ── Sibling import path setup ──────────────────────────────────────────────
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -40,6 +44,8 @@ from provenance import (
     trace_chain,
     _basename,
 )
+from pruner import extract_causal_subgraph
+from enricher import enrich_iocs, format_threat_intel_summary
 from triage import (
     AlertTriageReport,
     get_triage_mode,
@@ -88,7 +94,7 @@ def phase1_provenance(input_path: str):
 
     events = load_events(input_path)
     print(f"[*] Source      : {input_path}")
-    print(f"[*] Events loaded : {len(events)} Sysmon Event-ID-1 record(s)\n")
+    print(f"[*] Events loaded : {len(events)} Sysmon Event-ID-1/3 record(s)\n")
 
     G = build_graph(events)
     print(f"[*] Graph       : {G.number_of_nodes()} nodes, "
@@ -120,14 +126,40 @@ def phase1_provenance(input_path: str):
     return G, suspicious
 
 
-def phase2_triage(G, suspicious: list) -> list[tuple[AlertTriageReport, dict]]:
-    """Generate Pydantic triage reports for each suspicious edge."""
-    _phase("PHASE 2 — Structured Pydantic Triage")
+def phase2_pruning_and_enrichment(G, suspicious: list):
+    """
+    Phase 2: Bidirectional Subgraph Pruning & OSINT Threat Intel Enrichment.
+    Prunes the provenance graph down to its minimal causal DAG and enriches
+    discovered network indicators with OSINT threat intelligence.
+    """
+    _phase("PHASE 2 — Causal Subgraph Pruning & OSINT Threat Intel Enrichment")
+    pruned_results = []
 
-    results: list[tuple[AlertTriageReport, dict]] = []
     for parent_g, child_g in suspicious:
-        chain_guids = trace_chain(G, parent_g)
-        chain_nodes = [dict(G.nodes[g]) for g in chain_guids]
+        # 1. Prune graph around suspicious child pivot
+        causal_G = extract_causal_subgraph(G, child_g)
+        pruning_metrics = causal_G.graph.get("pruning_metrics", {})
+
+        # 2. Extract network indicators from causal subgraph
+        network_indicators: list[str] = []
+        for n_id, n_data in causal_G.nodes(data=True):
+            if n_data.get("node_type") == "NetworkSocket":
+                dest_ip = n_data.get("destination_ip")
+                hostname = n_data.get("hostname")
+                if dest_ip and dest_ip not in network_indicators:
+                    network_indicators.append(dest_ip)
+                if hostname and hostname not in network_indicators:
+                    network_indicators.append(hostname)
+
+        # 3. Enrich IP indicators with OSINT
+        raw_ips = [i for i in network_indicators if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", i)]
+        threat_intel = enrich_iocs(raw_ips)
+        if threat_intel:
+            print(f"[*] Threat Intel Enriched: {format_threat_intel_summary(threat_intel)}\n")
+
+        # 4. Extract causal process chain nodes
+        chain_guids = trace_chain(causal_G, parent_g)
+        chain_nodes = [dict(causal_G.nodes[g]) for g in chain_guids]
 
         decoded_parts = [
             n.get("DecodedPayload", "")
@@ -135,14 +167,27 @@ def phase2_triage(G, suspicious: list) -> list[tuple[AlertTriageReport, dict]]:
         ]
 
         subgraph_data = {
-            "parent_image": G.nodes[parent_g]["Image"],
-            "child_image":  G.nodes[child_g]["Image"],
+            "parent_image": causal_G.nodes[parent_g]["Image"],
+            "child_image":  causal_G.nodes[child_g]["Image"],
             "chain_nodes":  chain_nodes,
             "decoded_command": " | ".join(decoded_parts) if decoded_parts else "",
+            "network_indicators": network_indicators,
+            "threat_intel": threat_intel,
         }
 
+        pruned_results.append((parent_g, child_g, causal_G, subgraph_data, pruning_metrics))
+
+    return pruned_results
+
+
+def phase3_triage(pruned_results: list) -> list[tuple[AlertTriageReport, dict, Any, dict]]:
+    """Generate Pydantic triage reports for each pruned causal subgraph."""
+    _phase("PHASE 3 — Structured Pydantic Triage (Dual-Mode)")
+
+    results: list[tuple[AlertTriageReport, dict, Any, dict]] = []
+    for parent_g, child_g, causal_G, subgraph_data, pruning_metrics in pruned_results:
         report = triage_provenance_chain(subgraph_data)
-        results.append((report, subgraph_data))
+        results.append((report, subgraph_data, causal_G, pruning_metrics))
 
         print(f"  Alert ID         : {report.alert_id}")
         print(f"  Verdict          : {report.verdict}")
@@ -153,14 +198,16 @@ def phase2_triage(G, suspicious: list) -> list[tuple[AlertTriageReport, dict]]:
         print(f"  Decoded Payload  : {report.decoded_command or '(none)'}")
         if report.network_indicators:
             print(f"  Network Egress   : {', '.join(report.network_indicators)}")
+        if report.threat_intel:
+            print(f"  Threat Intel     : {format_threat_intel_summary(report.threat_intel)}")
         print(f"  Recommendation   : {report.recommended_action}\n")
 
     return results
 
 
-def phase3_synthesis(report: AlertTriageReport) -> tuple[list[str], list[str]]:
+def phase4_synthesis(report: AlertTriageReport) -> tuple[list[str], list[str]]:
     """Generate Sigma YAML, validate it, compile Splunk SPL + Sentinel KQL."""
-    _phase("PHASE 3 — Detection-as-Code Synthesis & SIEM Compilation")
+    _phase("PHASE 4 — Detection-as-Code Synthesis & SIEM Compilation")
 
     # Generate Sigma rule
     sigma_yaml = generate_sigma_rule(report)
@@ -190,6 +237,7 @@ def final_summary(
     kql_queries: list[str],
     graph_path: str | None = None,
     brief_path: str | None = None,
+    pruning_metrics: dict | None = None,
 ) -> None:
     """Print the consolidated execution summary block."""
     width = 72
@@ -202,8 +250,20 @@ def final_summary(
     print(f"  Confidence       : {report.confidence_score:.0%}")
     print(f"  MITRE ATT&CK     : {report.mitre_technique_id} — "
           f"{report.technique_name}")
+    if pruning_metrics:
+        total = pruning_metrics.get("total_nodes", 0)
+        causal = pruning_metrics.get("causal_nodes", 0)
+        reduc = pruning_metrics.get("noise_reduction_pct", 0.0)
+        print(f"  Graph Pruning    : {total} total nodes → {causal} causal nodes "
+              f"({reduc:.1f}% noise reduction)")
     if report.network_indicators:
         print(f"  Network Egress   : {', '.join(report.network_indicators)}")
+    if report.threat_intel:
+        for ip, intel in report.threat_intel.items():
+            cls_name = intel.get("threat_classification", "Unknown")
+            abuse = intel.get("abuse_confidence_score", 0)
+            country = intel.get("country", "")
+            print(f"  OSINT Intel      : {ip} [{country}] → {cls_name} (Abuse: {abuse}%)")
     print(f"  Rule Path        : {RULE_PATH}")
     if graph_path:
         rel_graph = os.path.relpath(graph_path).replace("\\", "/")
@@ -238,7 +298,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         dest="input_flag",
         metavar="FILE",
-        help=f"Path to Sysmon Event-ID-1 JSON log "
+        help=f"Path to Sysmon Event-ID-1/3 JSON log "
              f"(default: {default_input})",
     )
     args = parser.parse_args()
@@ -262,11 +322,14 @@ def main() -> None:
         print("[~] Pipeline exited cleanly — no malicious chains found.\n")
         return
 
-    # ── Phase 2: Triage ───────────────────────────────────────────────
-    triage_results = phase2_triage(G, suspicious)
+    # ── Phase 2: Pruning & OSINT Enrichment ───────────────────────────
+    pruned_results = phase2_pruning_and_enrichment(G, suspicious)
+
+    # ── Phase 3: Triage ───────────────────────────────────────────────
+    triage_results = phase3_triage(pruned_results)
 
     # ── Route by verdict ──────────────────────────────────────────────
-    for report, subgraph_data in triage_results:
+    for report, subgraph_data, causal_G, pruning_metrics in triage_results:
         if report.verdict == "BENIGN":
             _phase("VERDICT: BENIGN — Event Suppressed")
             print(f"[~] Alert {report.alert_id} classified as BENIGN "
@@ -274,16 +337,16 @@ def main() -> None:
             print("[~] No detection rules generated.  Exiting cleanly.\n")
             continue
 
-        # SUSPICIOUS or MALICIOUS → Phase 3
-        splunk_queries, kql_queries = phase3_synthesis(report)
+        # SUSPICIOUS or MALICIOUS → Phase 4: Synthesis
+        splunk_queries, kql_queries = phase4_synthesis(report)
 
         graph_path = None
         brief_path = None
 
         if report.verdict == "MALICIOUS":
-            _phase("PHASE 4 — Incident Reporting & Provenance Visualization")
+            _phase("PHASE 5 — Incident Reporting & Provenance Visualization")
             os.makedirs(REPORTS_DIR, exist_ok=True)
-            graph_path = generate_interactive_graph(G, output_path=GRAPH_HTML_PATH)
+            graph_path = generate_interactive_graph(causal_G, output_path=GRAPH_HTML_PATH)
             print(f"[+] Interactive provenance graph written → {graph_path}")
 
             brief_path = generate_incident_brief(
@@ -297,7 +360,7 @@ def main() -> None:
             print(f"[+] Incident response brief written → {brief_path}\n")
 
         elapsed = time.perf_counter() - t_start
-        final_summary(report, elapsed, splunk_queries, kql_queries, graph_path, brief_path)
+        final_summary(report, elapsed, splunk_queries, kql_queries, graph_path, brief_path, pruning_metrics)
 
 
 if __name__ == "__main__":

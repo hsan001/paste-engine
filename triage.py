@@ -18,7 +18,7 @@ import sys
 import urllib.error
 import urllib.request
 import uuid
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -75,6 +75,10 @@ class AlertTriageReport(BaseModel):
     network_indicators: list[str] = Field(
         default_factory=list,
         description="Extracted network egress indicators (IP addresses, domains)."
+    )
+    threat_intel: dict[str, Any] = Field(
+        default_factory=dict,
+        description="OSINT threat intelligence for observed indicators."
     )
     recommended_action: str = Field(
         description="Analyst-facing recommended response action."
@@ -279,6 +283,15 @@ def _heuristic_triage(graph_data: dict) -> AlertTriageReport:
             f"{', '.join(network_indicators)} indicating potential C2 communication."
         )
 
+    # OSINT Threat Intelligence Enrichment
+    threat_intel = dict(graph_data.get("threat_intel", {}))
+    for ip, intel in threat_intel.items():
+        if intel.get("is_malicious"):
+            classification = intel.get("threat_classification", "Malicious Host")
+            abuse = intel.get("abuse_confidence_score", 100)
+            country = intel.get("country", "")
+            explanation += f" OSINT threat intelligence confirms {ip} is classified as '{classification}' (Abuse: {abuse}%, {country})."
+
     recommended = (
         "Isolate host immediately, collect memory dump and Sysmon logs, "
         "revoke user session tokens, and escalate to Tier-2 SOC analyst."
@@ -297,6 +310,7 @@ def _heuristic_triage(graph_data: dict) -> AlertTriageReport:
         technique_name=technique["technique_name"],
         explanation=explanation,
         network_indicators=network_indicators,
+        threat_intel=threat_intel,
         recommended_action=recommended,
     )
 
@@ -365,6 +379,7 @@ def _llm_triage(
         "child_image": graph_data.get("child_image"),
         "decoded_command": graph_data.get("decoded_command", ""),
         "network_indicators": graph_data.get("network_indicators", []),
+        "threat_intel": graph_data.get("threat_intel", {}),
         "causal_execution_chain": chain_summary,
     }
 
@@ -410,6 +425,8 @@ def _llm_triage(
         parsed["verdict"] = parsed["verdict"].upper()
     if not parsed.get("network_indicators"):
         parsed["network_indicators"] = graph_data.get("network_indicators", [])
+    if not parsed.get("threat_intel"):
+        parsed["threat_intel"] = graph_data.get("threat_intel", {})
 
     return AlertTriageReport.model_validate(parsed)
 

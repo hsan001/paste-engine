@@ -145,7 +145,7 @@
 
   <div id="network-container">
     <div class="stats-card">
-      <div><b>Graph Size:</b> 10 Nodes &bull; 8 Directed Edges</div>
+      <div><b>Graph Size:</b> 7 Nodes &bull; 6 Directed Edges</div>
       <div><b>Telemetry:</b> Sysmon EID 1 (Process) + EID 3 (Network)</div>
       <div><b>Navigation:</b> Drag to Pan &bull; Scroll to Zoom &bull; Hover for Details</div>
     </div>
@@ -160,72 +160,6 @@
 
   <script type="text/javascript">
     const nodes = new vis.DataSet([
-  {
-    "id": "{a1b2c3d4-1001-6730-0001-000000000100}",
-    "label": "[explorer.exe]\nPID: 4012",
-    "title": "<b>Process:</b> explorer.exe (PID 4012)<br><b>Full Path:</b> C:\\Windows\\explorer.exe<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 08:30:01.234<br><b>Command:</b> <code>C:\\Windows\\explorer.exe</code>",
-    "shape": "box",
-    "color": {
-      "background": "#64748b",
-      "border": "#475569",
-      "highlight": {
-        "background": "#94a3b8",
-        "border": "#ffffff"
-      }
-    },
-    "font": {
-      "color": "#ffffff",
-      "face": "monospace",
-      "size": 13,
-      "bold": true
-    },
-    "borderWidth": 2,
-    "margin": 10
-  },
-  {
-    "id": "{a1b2c3d4-1002-6730-0002-000000000200}",
-    "label": "[chrome.exe]\nPID: 7284",
-    "title": "<b>Process:</b> chrome.exe (PID 7284)<br><b>Full Path:</b> C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 08:30:05.891<br><b>Command:</b> <code>&quot;C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe&quot; --profile-directory=Default</code>",
-    "shape": "box",
-    "color": {
-      "background": "#ef4444",
-      "border": "#dc2626",
-      "highlight": {
-        "background": "#f87171",
-        "border": "#ffffff"
-      }
-    },
-    "font": {
-      "color": "#ffffff",
-      "face": "monospace",
-      "size": 13,
-      "bold": true
-    },
-    "borderWidth": 2,
-    "margin": 10
-  },
-  {
-    "id": "{a1b2c3d4-1003-6730-0003-000000000300}",
-    "label": "[chrome.exe]\nPID: 7312",
-    "title": "<b>Process:</b> chrome.exe (PID 7312)<br><b>Full Path:</b> C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 08:30:06.452<br><b>Command:</b> <code>&quot;C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe&quot; --type=renderer --lang=en-US --enable-auto-reload</code>",
-    "shape": "box",
-    "color": {
-      "background": "#ef4444",
-      "border": "#dc2626",
-      "highlight": {
-        "background": "#f87171",
-        "border": "#ffffff"
-      }
-    },
-    "font": {
-      "color": "#ffffff",
-      "face": "monospace",
-      "size": 13,
-      "bold": true
-    },
-    "borderWidth": 2,
-    "margin": 10
-  },
   {
     "id": "{a1b2c3d4-2001-6730-0004-000000000400}",
     "label": "[winword.exe]\nPID: 5560",
@@ -408,40 +342,6 @@
     "label": "de-obfuscated",
     "font": {
       "color": "#f59e0b",
-      "size": 10,
-      "align": "top"
-    }
-  },
-  {
-    "from": "{a1b2c3d4-1001-6730-0001-000000000100}",
-    "to": "{a1b2c3d4-1002-6730-0002-000000000200}",
-    "arrows": "to",
-    "color": {
-      "color": "#94a3b8",
-      "highlight": "#ffffff"
-    },
-    "dashes": false,
-    "width": 2,
-    "label": "spawns",
-    "font": {
-      "color": "#94a3b8",
-      "size": 10,
-      "align": "top"
-    }
-  },
-  {
-    "from": "{a1b2c3d4-1002-6730-0002-000000000200}",
-    "to": "{a1b2c3d4-1003-6730-0003-000000000300}",
-    "arrows": "to",
-    "color": {
-      "color": "#94a3b8",
-      "highlight": "#ffffff"
-    },
-    "dashes": false,
-    "width": 2,
-    "label": "spawns",
-    "font": {
-      "color": "#94a3b8",
       "size": 10,
       "align": "top"
     }
