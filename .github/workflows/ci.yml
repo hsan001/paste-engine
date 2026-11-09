@@ -35,3 +35,6 @@ jobs:
 
       - name: Run noisy enterprise log pruning & enrichment check
         run: python paste_engine/main.py paste_engine/data/sample_enterprise_noisy.json
+
+      - name: Run automated empirical benchmark suite & performance scorecard
+        run: python paste_engine/benchmark.py

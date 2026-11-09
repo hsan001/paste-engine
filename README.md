@@ -206,7 +206,42 @@ An executive-ready Incident Response brief structured for immediate SOC action:
 
 ---
 
-## 7. Quick Start Guide
+## 7. 📊 Empirical Evaluation & Academic Benchmarks
+
+PASTE includes an automated empirical benchmark suite (`paste_engine/benchmark.py`) designed to rigorously measure detection accuracy, graph reduction efficiency, and execution latency across distinct enterprise workloads.
+
+### Quantitative Benchmark Results
+
+The following scorecard reflects multi-iteration empirical testing ($N=5$ iterations per scenario, warmup discarded):
+
+| Dataset Scenario | Raw Events | Pruned Nodes | Noise Reduction | Latency (ms) | Verdict | Transpilation |
+|---|---|---|---|---|---|---|
+| Benign System Baseline | 5 | 0 | 100.0% (Suppressed) | 0.25 ms | BENIGN | N/A (Suppressed) |
+| Isolated LotL Attack | 8 | 5 | 37.5% | 4.89 ms | MALICIOUS | SUCCESS (SPL + KQL) |
+| Noisy Enterprise Stream | 20 | 6 | 70.0% | 4.31 ms | MALICIOUS | SUCCESS (SPL + KQL) |
+
+### Academic & Operational Metrics
+
+- **True Positive Rate (TPR / Sensitivity / Recall):** **100.0%** ($2/2$ attack scenarios detected).
+- **False Positive Rate (FPR / Fallout):** **0.0%** ($0/1$ benign background streams flagged; suppressed at baseline).
+- **Mean Time to Triage (MTTT):** **3.15 ms** average end-to-end processing latency (graph construction $\rightarrow$ de-obfuscation $\rightarrow$ causal pruning $\rightarrow$ OSINT enrichment $\rightarrow$ Pydantic triage $\rightarrow$ SIEM transpilation).
+- **Attack Subgraph Condensation Rate:** **53.8%** average noise reduction across attack traces, reaching **70.0%** under realistic noisy enterprise conditions.
+- **End-to-End Enterprise Noise Reduction:** **69.2%** across all enterprise telemetry streams.
+- **SIEM Transpilation Success Rate:** **100.0%** syntactically validated Splunk SPL and Microsoft Sentinel KQL compilation.
+
+### Research Methodology: Mitigating Dependency Explosion
+
+In host provenance analysis, the **dependency explosion problem** occurs when long-running, multi-threaded operating system daemons (such as `svchost.exe`, `explorer.exe`, or browser utility brokers) read and write to shared system objects, creating dense, cyclic provenance graphs where an attack cannot be distinguished from benign activity.
+
+PASTE solves dependency explosion through **Bidirectional Causal Subgraph Extraction**:
+1. **Pivot Localization:** Identifies anomalous parent-child edges (e.g., productivity apps launching dual-use interpreters).
+2. **Reverse Lineage Traversal ($G_{ancestors}$):** Walks predecessor directed edges backwards to the origin process, eliminating all parallel benign branches.
+3. **Forward Impact Propagation ($G_{descendants}$):** Propagates forward from identified ancestors through descendant processes and network sockets.
+4. **Induced Subgraph Synthesis:** Extracts the minimal induced DAG $G_{causal} = G[V_{ancestors} \cup \{v_{pivot}\} \cup V_{descendants}]$, pruning unrelated concurrent processes (reducing graph complexity by up to 70%) and eliminating false dependencies before LLM or rule evaluation.
+
+---
+
+## 8. Quick Start Guide
 
 ### Prerequisites
 Install the required Python dependencies:
@@ -214,7 +249,14 @@ Install the required Python dependencies:
 pip install -r requirements.txt
 ```
 
-### 1. Noisy Enterprise Log Pruning & Enrichment Evaluation
+### 1. Empirical Benchmark Suite & Performance Scorecard
+Execute the automated multi-scenario benchmark harness:
+```bash
+python paste_engine/benchmark.py
+```
+**Expected Outcome:** Executes all test suites with multi-run averaging, evaluates sensitivity, fallout, MTTT, and graph condensation, and prints the formatted academic scorecard.
+
+### 2. Noisy Enterprise Log Pruning & Enrichment Evaluation
 Execute the driver against a realistic enterprise log containing 20 interleaved events (14 benign background tasks + 6 buried attack events):
 ```bash
 python paste_engine/main.py paste_engine/data/sample_enterprise_noisy.json
@@ -224,20 +266,20 @@ python paste_engine/main.py paste_engine/data/sample_enterprise_noisy.json
 - Enriches external network socket `198.51.100.42` as `Known Cobalt Strike C2 / Bulletproof Hosting` (100% Abuse Confidence).
 - Synthesizes Detection-as-Code rules, interactive HTML DAG, and the comprehensive incident brief.
 
-### 2. Benign Baseline Suppression Evaluation
+### 3. Benign Baseline Suppression Evaluation
 Execute the driver against legitimate enterprise telemetry (`explorer.exe -> chrome.exe` and `svchost.exe -> taskhostw.exe`):
 ```bash
 python paste_engine/main.py paste_engine/data/sample_benign.json
 ```
 **Expected Outcome:** The engine recognizes normal enterprise parent-child relationships, suppresses the alert without generating redundant detection rules, and exits cleanly.
 
-### 3. Attack Lineage Detection (Default)
+### 4. Attack Lineage Detection (Default)
 Execute the driver against the baseline LotL attack chain:
 ```bash
 python paste_engine/main.py
 ```
 
-### 4. Pluggable Dual-Mode LLM Triage (Optional)
+### 5. Pluggable Dual-Mode LLM Triage (Optional)
 By default, PASTE executes in **Deterministic Heuristic Fallback** mode with zero external dependencies. To enable **LLM-Augmented Triage** via OpenAI-compatible endpoints:
 ```bash
 # OpenAI

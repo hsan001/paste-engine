@@ -145,7 +145,7 @@
 
   <div id="network-container">
     <div class="stats-card">
-      <div><b>Graph Size:</b> 7 Nodes &bull; 6 Directed Edges</div>
+      <div><b>Graph Size:</b> 8 Nodes &bull; 7 Directed Edges</div>
       <div><b>Telemetry:</b> Sysmon EID 1 (Process) + EID 3 (Network)</div>
       <div><b>Navigation:</b> Drag to Pan &bull; Scroll to Zoom &bull; Hover for Details</div>
     </div>
@@ -161,15 +161,15 @@
   <script type="text/javascript">
     const nodes = new vis.DataSet([
   {
-    "id": "{a1b2c3d4-2001-6730-0004-000000000400}",
-    "label": "[winword.exe]\nPID: 5560",
-    "title": "<b>Process:</b> winword.exe (PID 5560)<br><b>Full Path:</b> C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 09:15:22.100<br><b>Command:</b> <code>&quot;C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE&quot; /n &quot;C:\\Users\\mhassan\\Documents\\Q3_Report.docx&quot;</code>",
+    "id": "{a1b2c3d4-2005-6730-0008-000000000800}",
+    "label": "[net.exe]\nPID: 10512",
+    "title": "<b>Process:</b> net.exe (PID 10512)<br><b>Full Path:</b> C:\\Windows\\System32\\net.exe<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 09:15:38.890<br><b>Command:</b> <code>net.exe localgroup administrators</code>",
     "shape": "box",
     "color": {
-      "background": "#64748b",
-      "border": "#475569",
+      "background": "#ef4444",
+      "border": "#dc2626",
       "highlight": {
-        "background": "#94a3b8",
+        "background": "#f87171",
         "border": "#ffffff"
       }
     },
@@ -224,6 +224,50 @@
       "bold": true
     },
     "borderWidth": 2
+  },
+  {
+    "id": "{a1b2c3d4-2001-6730-0004-000000000400}",
+    "label": "[winword.exe]\nPID: 5560",
+    "title": "<b>Process:</b> winword.exe (PID 5560)<br><b>Full Path:</b> C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 09:15:22.100<br><b>Command:</b> <code>&quot;C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE&quot; /n &quot;C:\\Users\\mhassan\\Documents\\Q3_Report.docx&quot;</code>",
+    "shape": "box",
+    "color": {
+      "background": "#64748b",
+      "border": "#475569",
+      "highlight": {
+        "background": "#94a3b8",
+        "border": "#ffffff"
+      }
+    },
+    "font": {
+      "color": "#ffffff",
+      "face": "monospace",
+      "size": 13,
+      "bold": true
+    },
+    "borderWidth": 2,
+    "margin": 10
+  },
+  {
+    "id": "{a1b2c3d4-2004-6730-0007-000000000700}",
+    "label": "[whoami.exe]\nPID: 10204",
+    "title": "<b>Process:</b> whoami.exe (PID 10204)<br><b>Full Path:</b> C:\\Windows\\System32\\whoami.exe<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 09:15:37.670<br><b>Command:</b> <code>whoami.exe /all</code>",
+    "shape": "box",
+    "color": {
+      "background": "#ef4444",
+      "border": "#dc2626",
+      "highlight": {
+        "background": "#f87171",
+        "border": "#ffffff"
+      }
+    },
+    "font": {
+      "color": "#ffffff",
+      "face": "monospace",
+      "size": 13,
+      "bold": true
+    },
+    "borderWidth": 2,
+    "margin": 10
   },
   {
     "id": "{a1b2c3d4-2003-6730-0006-000000000600}",
@@ -287,28 +331,6 @@
       "size": 12
     },
     "borderWidth": 2
-  },
-  {
-    "id": "{a1b2c3d4-2004-6730-0007-000000000700}",
-    "label": "[whoami.exe]\nPID: 10204",
-    "title": "<b>Process:</b> whoami.exe (PID 10204)<br><b>Full Path:</b> C:\\Windows\\System32\\whoami.exe<br><b>User:</b> DESKTOP-ROG\\mhassan<br><b>Timestamp:</b> 2026-11-09 09:15:35.670<br><b>Command:</b> <code>whoami.exe /all</code>",
-    "shape": "box",
-    "color": {
-      "background": "#ef4444",
-      "border": "#dc2626",
-      "highlight": {
-        "background": "#f87171",
-        "border": "#ffffff"
-      }
-    },
-    "font": {
-      "color": "#ffffff",
-      "face": "monospace",
-      "size": 13,
-      "bold": true
-    },
-    "borderWidth": 2,
-    "margin": 10
   }
 ]);
     const edges = new vis.DataSet([
@@ -347,8 +369,8 @@
     }
   },
   {
-    "from": "{a1b2c3d4-2001-6730-0004-000000000400}",
-    "to": "{a1b2c3d4-2002-6730-0005-000000000500}",
+    "from": "{a1b2c3d4-2002-6730-0005-000000000500}",
+    "to": "{a1b2c3d4-2003-6730-0006-000000000600}",
     "arrows": "to",
     "color": {
       "color": "#94a3b8",
@@ -364,8 +386,8 @@
     }
   },
   {
-    "from": "{a1b2c3d4-2002-6730-0005-000000000500}",
-    "to": "{a1b2c3d4-2003-6730-0006-000000000600}",
+    "from": "{a1b2c3d4-2001-6730-0004-000000000400}",
+    "to": "{a1b2c3d4-2002-6730-0005-000000000500}",
     "arrows": "to",
     "color": {
       "color": "#94a3b8",
@@ -400,6 +422,23 @@
   {
     "from": "{a1b2c3d4-2003-6730-0006-000000000600}",
     "to": "{a1b2c3d4-2004-6730-0007-000000000700}",
+    "arrows": "to",
+    "color": {
+      "color": "#94a3b8",
+      "highlight": "#ffffff"
+    },
+    "dashes": false,
+    "width": 2,
+    "label": "spawns",
+    "font": {
+      "color": "#94a3b8",
+      "size": 10,
+      "align": "top"
+    }
+  },
+  {
+    "from": "{a1b2c3d4-2003-6730-0006-000000000600}",
+    "to": "{a1b2c3d4-2005-6730-0008-000000000800}",
     "arrows": "to",
     "color": {
       "color": "#94a3b8",
